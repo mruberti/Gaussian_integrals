@@ -28,9 +28,9 @@ public class gaussianintegralsKernel extends Kernel {
 	Memory<DFEVar> alf;
 	
 	//NEW
-	Memory<DFEVar> coeff;
-	Memory<DFEVar> outputvec;
-	Memory<DFEVar> inputvec;
+	//Memory<DFEVar> coeff;
+	//Memory<DFEVar> outputvec;
+	//Memory<DFEVar> inputvec;
 	//NEW
 	
 	//NEW
