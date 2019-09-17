@@ -27,45 +27,6 @@ public class gaussianintegralsKernel extends Kernel {
 	
 	Memory<DFEVar> alf;
 	
-	//NEW
-	//Memory<DFEVar> coeff;
-	//Memory<DFEVar> outputvec;
-	//Memory<DFEVar> inputvec;
-	//NEW
-	
-	//NEW
-	public  DFEVar transform( DFEVector<DFEVar> inputvec, DFEVector<DFEVar> outputvec, final int maxMAXExp) {
- 
-			DFEVar result;
-					
-			CounterChain chain = control.count.makeCounterChain();
-			//DFEVar GLOB = chain.addCounter(maxGLOB, UnrollFactor).cast(dfeInt(maxGLOB.getType().getTotalBits()+1));
-			DFEVar indt = chain.addCounter(maxExp,1).cast(dfeUInt(MathUtils.bitsToRepresentUnsigned(maxMAXExp - 1)));
-			DFEVar ind1 = chain.addCounter(maxExp,1).cast(dfeUInt(MathUtils.bitsToRepresentUnsigned(maxMAXExp - 1)));
-			DFEVar ind2 = chain.addCounter(maxExp,1).cast(dfeUInt(MathUtils.bitsToRepresentUnsigned(maxMAXExp - 1)));		
-			DFEVar ind3 = chain.addCounter(maxExp,1).cast(dfeUInt(MathUtils.bitsToRepresentUnsigned(maxMAXExp - 1)));
-			DFEVar inds = chain.addCounter(maxExp,1).cast(dfeUInt(MathUtils.bitsToRepresentUnsigned(maxMAXExp - 1)));
-		      
-		    DFEVar counter_prim = (indt)*maxExp*maxExp*maxExp + (ind1)*maxExp*maxExp + (ind2)*maxExp + ind3; 
-		         
-		    DFEVar counter = (ind1)*maxExp*maxExp*maxExp + (ind2)*maxExp*maxExp + (ind3)*maxExp + inds;
-		    
-		    result = outputvec.read(counter_prim) + coeff.read(indt*maxExp+inds) * inputvec.read(counter);
-		      
-		    //outputvec.write(counter_prim) = outputvec.read(counter_prim) + coeff.read(indt*maxExp+inds) * inputvec.read(counter); 
-		    //result = outputvec.read(counter_prim);
-		      
-		    return result;
-		    
-		    //here I want result to be put into the counter_prim element of the vector outputvec
-		    //DFEVector<DFEVar> outputvec = DFEVectorType.newInstance(result);
-			//io.output("twoeint", output, output.getType());
-      }
-	//NEW
-
-
-	
-	
 	
 	
 	public  DFEVar gaussian( DFEVar GLOB, DFEVar Nx2, DFEVar Ny2, DFEVar Nz2, DFEVar Nexp2, 
@@ -130,16 +91,6 @@ public class gaussianintegralsKernel extends Kernel {
 	
 		alf = mem.alloc(dfeFloat(8,24), maxMAXExp );
 		alf.mapToCPU("alf");
-		
-		//NEW
-		coeff = mem.alloc(dfeFloat(8,24), maxMAXExp*maxMAXExp );
-		coeff.mapToCPU("coeff");
-		inputvec = mem.alloc(dfeFloat(8,24), maxMAXExp*maxMAXExp*maxMAXExp*maxMAXExp );
-		inputvec.mapToCPU("inputvec");
-		outputvec= mem.alloc(dfeFloat(8,24), maxMAXExp*maxMAXExp*maxMAXExp*maxMAXExp );
-		outputvec.mapToCPU("outputvec");
-		//NEW
-		
 		
 		stepx = io.scalarInput("stepx",dfeFloat(8,24));
 		stepy = io.scalarInput("stepy",dfeFloat(8,24));
