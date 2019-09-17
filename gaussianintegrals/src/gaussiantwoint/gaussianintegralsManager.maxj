@@ -1,0 +1,34 @@
+package gaussiantwoint;
+
+import com.maxeler.maxcompiler.v2.build.EngineParameters;
+import com.maxeler.maxcompiler.v2.managers.custom.DFELink;
+import com.maxeler.maxcompiler.v2.managers.custom.blocks.KernelBlock;
+import com.maxeler.platform.max5.manager.MAX5CManager;
+
+public class gaussianintegralsManager extends MAX5CManager {
+
+	public static final String kernelName = "gaussianintegralsKernel";
+
+	private static final int UnrollFactor = 31;
+	
+	public gaussianintegralsManager(EngineParameters params) {
+		super(params);
+		
+		final int maxMAXExp = 20;
+		//final int maxMAXExp = 4;
+
+		final KernelBlock kernel = addKernel(new gaussianintegralsKernel(makeKernelParameters(kernelName), maxMAXExp, UnrollFactor));
+
+		final DFELink twoeint = addStreamToCPU("twoeint");
+		twoeint <== kernel.getOutput("twoeint");
+	}
+
+	public static void main(final String[] argv) {
+		final EngineParameters params = new EngineParameters(argv);
+		final gaussianintegralsManager manager = new gaussianintegralsManager(params);
+		manager.addMaxFileConstant("UnrollFactor", UnrollFactor);
+		manager.setAllowNonMultipleTransitions(true);
+		manager.build();
+	}
+
+}

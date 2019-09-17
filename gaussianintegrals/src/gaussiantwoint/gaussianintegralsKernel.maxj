@@ -1,0 +1,199 @@
+package gaussiantwoint;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelParameters;
+import com.maxeler.maxcompiler.v2.kernelcompiler.RoundingMode;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.KernelMath;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.CounterChain;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.memory.Memory;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEType;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVectorType;
+import com.maxeler.maxcompiler.v2.utils.MathUtils;
+
+public class gaussianintegralsKernel extends Kernel {
+		
+	DFEVar maxNx; 
+	DFEVar maxNy; 
+	DFEVar maxNz; 
+	DFEVar maxExp;	
+	DFEVar stepx;
+	DFEVar stepy;
+	DFEVar stepz;
+	
+	Memory<DFEVar> alf;
+	
+	//NEW
+	Memory<DFEVar> coeff;
+	Memory<DFEVar> outputvec;
+	Memory<DFEVar> inputvec;
+	//NEW
+	
+	//NEW
+	public  DFEVar transform( DFEVector<DFEVar> inputvec, DFEVector<DFEVar> outputvec, final int maxMAXExp) {
+ 
+			DFEVar result;
+					
+			CounterChain chain = control.count.makeCounterChain();
+			//DFEVar GLOB = chain.addCounter(maxGLOB, UnrollFactor).cast(dfeInt(maxGLOB.getType().getTotalBits()+1));
+			DFEVar indt = chain.addCounter(maxExp,1).cast(dfeUInt(MathUtils.bitsToRepresentUnsigned(maxMAXExp - 1)));
+			DFEVar ind1 = chain.addCounter(maxExp,1).cast(dfeUInt(MathUtils.bitsToRepresentUnsigned(maxMAXExp - 1)));
+			DFEVar ind2 = chain.addCounter(maxExp,1).cast(dfeUInt(MathUtils.bitsToRepresentUnsigned(maxMAXExp - 1)));		
+			DFEVar ind3 = chain.addCounter(maxExp,1).cast(dfeUInt(MathUtils.bitsToRepresentUnsigned(maxMAXExp - 1)));
+			DFEVar inds = chain.addCounter(maxExp,1).cast(dfeUInt(MathUtils.bitsToRepresentUnsigned(maxMAXExp - 1)));
+		      
+		    DFEVar counter_prim = (indt)*maxExp*maxExp*maxExp + (ind1)*maxExp*maxExp + (ind2)*maxExp + ind3; 
+		         
+		    DFEVar counter = (ind1)*maxExp*maxExp*maxExp + (ind2)*maxExp*maxExp + (ind3)*maxExp + inds;
+		    
+		    result = outputvec.read(counter_prim) + coeff.read(indt*maxExp+inds) * inputvec.read(counter);
+		      
+		    //outputvec.write(counter_prim) = outputvec.read(counter_prim) + coeff.read(indt*maxExp+inds) * inputvec.read(counter); 
+		    //result = outputvec.read(counter_prim);
+		      
+		    return result;
+		    
+		    //here I want result to be put into the counter_prim element of the vector outputvec
+		    //DFEVector<DFEVar> outputvec = DFEVectorType.newInstance(result);
+			//io.output("twoeint", output, output.getType());
+      }
+	//NEW
+
+
+	
+	
+	
+	
+	public  DFEVar gaussian( DFEVar GLOB, DFEVar Nx2, DFEVar Ny2, DFEVar Nz2, DFEVar Nexp2, 
+			DFEVar Nx3, DFEVar Ny3, DFEVar Nz3, DFEVar Nexp3, DFEVar Nx4, DFEVar Ny4, DFEVar Nz4, DFEVar Nexp4) {
+ 
+			DFEVar result;
+			
+			optimization.pushRoundingMode(RoundingMode.TRUNCATE);
+			DFEVar Nx1 = GLOB/(maxNy*maxNz*maxExp);
+			DFEVar GLOB_loc = GLOB - (Nx1*maxNy*maxNz*maxExp);
+			DFEVar Ny1 = GLOB_loc/(maxNz*maxExp);
+			GLOB_loc = GLOB_loc - (Ny1*maxNz*maxExp);
+			DFEVar Nz1 = GLOB_loc/maxExp;
+			GLOB_loc = GLOB_loc - (Nz1*maxExp);
+			DFEVar Nexp1 = GLOB_loc.cast(Nexp2.getType());	
+			optimization.popRoundingMode();
+			
+			
+			DFEVar d12 = ((Nx1-Nx2).cast(stepx.getType()) * stepx * (Nx1-Nx2).cast(stepx.getType()) * stepx) + 
+					((Ny1-Ny2).cast(stepy.getType()) * stepy * (Ny1-Ny2).cast(stepy.getType()) * stepy) + 
+					((Nz1-Nz2).cast(stepz.getType()) * stepz * (Nz1-Nz2).cast(stepz.getType()) * stepz);
+			DFEVar A = alf.read(Nexp1) + alf.read(Nexp2);
+			DFEVar red_A = (alf.read(Nexp1) * alf.read(Nexp2))/A;	
+			DFEVar CM12x = (alf.read(Nexp1) * ((Nx1).cast(stepx.getType()) * stepx) + alf.read(Nexp2)*((Nx2).cast(stepx.getType()) * stepx))/A;
+			DFEVar CM12y = (alf.read(Nexp1) * ((Ny1).cast(stepy.getType()) * stepy) + alf.read(Nexp2)*((Ny2).cast(stepy.getType()) * stepy))/A;
+			DFEVar CM12z = (alf.read(Nexp1) * ((Nz1).cast(stepz.getType()) * stepz) + alf.read(Nexp2)*((Nz2).cast(stepz.getType()) * stepz))/A;
+
+			
+			DFEVar d34 = ((Nx3-Nx4).cast(stepx.getType()) * stepx * (Nx3-Nx4).cast(stepx.getType()) * stepx) + 
+			        ((Ny3-Ny4).cast(stepy.getType()) * stepy * (Ny3-Ny4).cast(stepy.getType()) * stepy) + 
+			        ((Nz3-Nz4).cast(stepz.getType()) * stepz * (Nz3-Nz4).cast(stepz.getType()) * stepz);				
+			DFEVar B = alf.read(Nexp3) + alf.read(Nexp4);
+			DFEVar red_B = (alf.read(Nexp3) * alf.read(Nexp4))/B;			
+			DFEVar CM34x = (alf.read(Nexp3) * ((Nx3).cast(stepx.getType()) * stepx) + alf.read(Nexp4)*((Nx4).cast(stepx.getType()) * stepx))/B;
+			DFEVar CM34y = (alf.read(Nexp3) * ((Ny3).cast(stepy.getType()) * stepy) + alf.read(Nexp4)*((Ny4).cast(stepy.getType()) * stepy))/B;
+			DFEVar CM34z = (alf.read(Nexp3) * ((Nz3).cast(stepz.getType()) * stepz) + alf.read(Nexp4)*((Nz4).cast(stepz.getType()) * stepz))/B;			
+
+			
+			DFEVar dCM = ((CM12x-CM34x) * (CM12x-CM34x)) + 
+				   ((CM12y-CM34y) * (CM12y-CM34y)) + ((CM12z-CM34z) * (CM12z-CM34z));
+		    DFEVar arg = dCM*A*B/(A+B);
+		    arg = KernelMath.sqrt(arg);		    
+	
+		    result = Math.pow(Math.PI, 3)/(A*B*KernelMath.sqrt(A+B));
+		    result = result * KernelMath.exp(-red_A*d12)*KernelMath.exp(-red_B*d34);	    
+		    result *= arg > 10e-4 ? new ErfCubicSpline(this, arg.getType().getTotalBits()).get(arg) / arg : 1.0 ;
+
+				     	     
+		return result;
+	}
+
+	
+	
+	
+	DFEType type = dfeUInt(15);
+    
+    
+    
+	public gaussianintegralsKernel(final KernelParameters parameters, final int maxMAXExp, final int UnrollFactor) {
+		super(parameters);
+		
+	
+		alf = mem.alloc(dfeFloat(8,24), maxMAXExp );
+		alf.mapToCPU("alf");
+		
+		//NEW
+		coeff = mem.alloc(dfeFloat(8,24), maxMAXExp*maxMAXExp );
+		coeff.mapToCPU("coeff");
+		inputvec = mem.alloc(dfeFloat(8,24), maxMAXExp*maxMAXExp*maxMAXExp*maxMAXExp );
+		inputvec.mapToCPU("inputvec");
+		outputvec= mem.alloc(dfeFloat(8,24), maxMAXExp*maxMAXExp*maxMAXExp*maxMAXExp );
+		outputvec.mapToCPU("outputvec");
+		//NEW
+		
+		
+		stepx = io.scalarInput("stepx",dfeFloat(8,24));
+		stepy = io.scalarInput("stepy",dfeFloat(8,24));
+		stepz = io.scalarInput("stepz",dfeFloat(8,24));
+		maxNx = io.scalarInput("maxNx",type);
+		maxNy = io.scalarInput("maxNy",type);
+		maxNz = io.scalarInput("maxNz",type);
+		maxExp = io.scalarInput("maxExp", type); 
+
+		
+		   
+		DFEVar maxGLOB = (maxNx * maxNy) * (maxNz * maxExp); 
+		//DFEVar maxGLOB = (maxNx * maxNy).cast(dfeUInt(15)) * (maxNz * maxExp).cast(dfeUInt(15)); 
+		
+		
+		
+		
+		CounterChain chain = control.count.makeCounterChain();
+		DFEVar GLOB = chain.addCounter(maxGLOB, UnrollFactor).cast(dfeInt(maxGLOB.getType().getTotalBits()+1));	
+		DFEVar Nx2 = chain.addCounter(maxNx,1).cast(dfeInt(maxNx.getType().getTotalBits()+1));
+		DFEVar Ny2 = chain.addCounter(maxNy,1).cast(dfeInt(maxNy.getType().getTotalBits()+1));
+		DFEVar Nz2 = chain.addCounter(maxNz,1).cast(dfeInt(maxNz.getType().getTotalBits()+1));
+		DFEVar Nexp2 = chain.addCounter(maxExp,1).cast(dfeUInt(MathUtils.bitsToRepresentUnsigned(maxMAXExp - 1)));		
+		DFEVar Nx3 = chain.addCounter(maxNx,1).cast(dfeInt(maxNx.getType().getTotalBits()+1));
+		DFEVar Ny3 = chain.addCounter(maxNy,1).cast(dfeInt(maxNy.getType().getTotalBits()+1));
+		DFEVar Nz3 = chain.addCounter(maxNz,1).cast(dfeInt(maxNz.getType().getTotalBits()+1));
+		DFEVar Nexp3 = chain.addCounter(maxExp,1).cast(dfeUInt(MathUtils.bitsToRepresentUnsigned(maxMAXExp - 1)));
+		DFEVar Nx4 = chain.addCounter(maxNx,1).cast(dfeInt(maxNx.getType().getTotalBits()+1));
+		DFEVar Ny4 = chain.addCounter(maxNy,1).cast(dfeInt(maxNy.getType().getTotalBits()+1));
+		DFEVar Nz4 = chain.addCounter(maxNz,1).cast(dfeInt(maxNz.getType().getTotalBits()+1));
+		DFEVar Nexp4 = chain.addCounter(maxExp,1).cast(dfeUInt(MathUtils.bitsToRepresentUnsigned(maxMAXExp - 1)));
+		
+		maxExp = maxExp.cast(dfeInt(type.getTotalBits()+1));
+		maxNx = maxNx.cast(dfeInt(type.getTotalBits()+1));
+		maxNy = maxNy.cast(dfeInt(type.getTotalBits()+1));
+		maxNz = maxNz.cast(dfeInt(type.getTotalBits()+1));
+
+		
+		List<DFEVar> result = new ArrayList<>();
+		
+		for (int i = 0; i<UnrollFactor; i++) {
+		
+			
+			DFEVar twoeint = gaussian( GLOB+i, 
+					                     Nx2, Ny2, Nz2, Nexp2, 
+					                     Nx3, Ny3, Nz3, Nexp3, 
+					                     Nx4, Ny4, Nz4, Nexp4);	
+			
+			 result.add(twoeint);
+		}
+		
+
+		DFEVector<DFEVar> output = DFEVectorType.newInstance(result);
+		io.output("twoeint", output, output.getType());
+	}
+
+}
