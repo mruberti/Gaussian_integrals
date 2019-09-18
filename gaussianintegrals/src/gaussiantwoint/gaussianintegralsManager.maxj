@@ -9,7 +9,7 @@ public class gaussianintegralsManager extends MAX5CManager {
 
 	public static final String kernelName = "gaussianintegralsKernel";
 
-	private static final int UnrollFactor = 31;
+	private static final int UnrollFactor = 10;
 	
 	public gaussianintegralsManager(EngineParameters params) {
 		super(params);
