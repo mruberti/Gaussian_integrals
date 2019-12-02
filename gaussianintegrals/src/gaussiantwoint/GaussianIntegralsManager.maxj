@@ -1,0 +1,77 @@
+package gaussiantwoint;
+
+import com.maxeler.maxcompiler.v2.build.EngineParameters;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelParameters;
+import com.maxeler.maxcompiler.v2.managers.custom.DFELink;
+import com.maxeler.maxcompiler.v2.managers.custom.blocks.KernelBlock;
+import com.maxeler.platform.max5.manager.BuildConfig;
+import com.maxeler.platform.max5.manager.ImplementationStrategy;
+import com.maxeler.platform.max5.manager.MAX5CManager;
+
+public class GaussianIntegralsManager extends MAX5CManager {
+
+	public static final String gaussianKernelName = "GaussianKernel";
+	public static final String transformKernelName = "TransformKernel";
+
+	private static final int maxMAXExp = 4;
+	
+	public GaussianIntegralsManager(EngineParameters params) {
+		super(params);
+		
+		setHasStreamStatus(true);
+
+		configMax5Build(getBuildConfig(), params); 
+		final KernelBlock kernelG = addKernel(new GaussianKernel(makeKernelParameters(gaussianKernelName), maxMAXExp));
+		
+		final KernelBlock kernelT = addKernel(new TransformKernel(makeKernelParameters(transformKernelName), maxMAXExp));
+		
+        kernelT.getInput("twoeint") <== kernelG.getOutput("twoeint");
+		final DFELink toCPU = addStreamToCPU("toCPU");
+		toCPU <== kernelT.getOutput("toCPU");
+	}
+
+	protected void configMax5Build(final BuildConfig buildConfig, final EngineParameters params) {
+		// how many implementation strategies to build in parallel
+		buildConfig.setParallelism(4); //params.getMPPRThreads());
+
+		// SpecFEM3D specific if-branch: for the builds running in the test pipeline build only 3 implementation strategies
+		
+			// for use in the development cycle: build all of them until one strategy meets timing, then stop building the next strategies from this list and cancel other strategies running in parallel.
+			buildConfig.setImplementationStrategies(
+					ImplementationStrategy.MAXELER1,
+					ImplementationStrategy.MAXELER2,
+					ImplementationStrategy.MAXELER3,
+					ImplementationStrategy.MAXELER4,
+					ImplementationStrategy.PERFORMANCE_RETIMING,
+					ImplementationStrategy.PERFORMANCE_NET_DELAY_HIGH,
+					ImplementationStrategy.PERFORMANCE_WL_BLOCK_PLACEMENT,
+					ImplementationStrategy.PERFORMANCE_WL_BLOCK_PLACEMENT_FANOUT_OPT,
+					ImplementationStrategy.PERFORMANCE_EXTRA_TIMING_OPT,
+					ImplementationStrategy.AREA_EXPLORE_SEQUENTIAL,
+					ImplementationStrategy.PERFORMANCE_EXPLORE,
+					ImplementationStrategy.CONGESTION_SPREAD_LOGIC_EXPLORE,
+					ImplementationStrategy.CONGESTION_SPREAD_LOGIC_HIGH,
+					ImplementationStrategy.PERFORMANCE_EXPLORE_POST_ROUTE_PHYS_OPT,
+					ImplementationStrategy.PERFORMANCE_NET_DELAY_LOW,
+					ImplementationStrategy.PERFORMANCE_REFINE_PLACEMENT,
+					ImplementationStrategy.PERFORMANCE_SPREAD_SLLS,
+					ImplementationStrategy.PERFORMANCE_BALANCE_SLLS,
+					ImplementationStrategy.CONGESTION_SSI_SPREAD_LOGIC_EXPLORE
+					);
+
+			// if an implementation strategy does not meet timing, but the timing score is below the threshold, try to re-try the same implementation strategy (I guess with some refined search around the solution already given by an initial failed build):
+			buildConfig.setImplementationNearMissRetries(2); // how many times to re-try
+			buildConfig.setImplementationNearMissThreshold(2000); // timing score threshold
+		
+	}
+	
+	
+	
+	public static void main(final String[] argv) {
+		final EngineParameters params = new EngineParameters(argv);
+		final GaussianIntegralsManager manager = new GaussianIntegralsManager(params);
+		manager.setAllowNonMultipleTransitions(true); 
+		manager.build();
+	}
+
+}
